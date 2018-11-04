@@ -1,0 +1,4 @@
+send_rotate_left(1,2,6);
+stop_bot(1,2);
+send_rotate_right(1,2,2);
+stop_bot(1,2);
