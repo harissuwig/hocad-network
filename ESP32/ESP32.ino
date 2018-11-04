@@ -8,7 +8,7 @@
 #define BLELED 23
 #define REDLED 2
 
-#define __DEBUG__ 0
+#define __DEBUG__ 1
 
 
 ESP32Adhoc Adhoc;
@@ -198,7 +198,7 @@ void adhoc_recv_filter(char packet[]) {
   char src = Adhoc.get_src(packet);
   char dst = Adhoc.get_dst(packet);
   char inter = Adhoc.get_inter(packet);
-  unsigned int counter = Adhoc.get_counter(packet);
+  unsigned long counter = Adhoc.get_counter(packet);
   char ACK = Adhoc.is_ACK(packet);
 
   if (src == Adhoc.ID_SELF ) {
@@ -937,6 +937,9 @@ void getTCPData() {
 
     if (!Adhoc.is_valid(tcpBuffer)) {
       newData = false;
+#if(__DEBUG__ == 1)
+      Serial.println("Invalid tcpBuffer");
+#endif
       return;
     }
 #ifdef __DEBUG__
@@ -994,4 +997,3 @@ void getTCPData() {
 
   }
 }
-

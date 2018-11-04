@@ -9,7 +9,7 @@ extern int src_id;
 extern int dst_id;
 
 /* Global packet counter value */
-extern uint16_t counter;
+extern long counter;
 
 /* To maintain mapping between sockfd and bot ID */
 char *BOT_ID;
