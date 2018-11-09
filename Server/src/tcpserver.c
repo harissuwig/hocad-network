@@ -91,29 +91,32 @@ int main(int argc , char *argv[])
 
     //Accept and incoming connection
 
-    while(con_count != NUM_CONNECTIONS) {
+//     while(con_count != NUM_CONNECTIONS) {
 
-        c = sizeof(struct sockaddr_in);
-        puts("* Waiting for bots to connect");
+//         c = sizeof(struct sockaddr_in);
+//         puts("* Waiting for bots to connect");
 
-        //accept connection from an incoming client
-        client_sock[con_count] = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
-        if (client_sock[con_count] < 0)
-        {
-            perror("accept failed");
-            return 1;
-        }
-        printf("  - Accepted connection\n");
-#ifdef __DEBUG__
-        printf("Got new  sockfd %d\n",client_sock[con_count]);
-#endif
-        BOT_ID[con_count] = get_botID(con_count);
-        printf("  - Bot with ID : <%d> Connected\n",BOT_ID[con_count]);
-        con_count++;
-    }
+//         //accept connection from an incoming client
+//         client_sock[con_count] = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
+//         if (client_sock[con_count] < 0)
+//         {
+//             perror("accept failed");
+//             return 1;
+//         }
+//         printf("  - Accepted connection\n");
+// #ifdef __DEBUG__
+//         printf("Got new  sockfd %d\n",client_sock[con_count]);
+// #endif
+//         BOT_ID[con_count] = get_botID(con_count);
+//         printf("  - Bot with ID : <%d> Connected\n",BOT_ID[con_count]);
+//         con_count++;
+//     }
     printf("-----------------------------------------------------------\n");
 
     
+    int mode1_tog = 0;
+    int mode2_tog = 0;
+
     FILE *fptr;
     unsigned int counter_rssi = 0;
     unsigned int counter_d = 0;
@@ -145,6 +148,8 @@ int main(int argc , char *argv[])
         printf("  11. Execute commands from file (cmd_file.txt)\n");
         printf("  12. Distance + RSSI Measurement\n");  
         printf("  13. Get distance from RSSI\n");    
+        printf("  14. Toggle follow leader mode 1, state: %d\n",mode1_tog);
+        printf("  15. Toggle follow leader mode 2, state: %d\n",mode2_tog);
         printf(" Waiting for user input : "); 
         
         scanf("%d",&cmd_val);        
@@ -155,7 +160,7 @@ int main(int argc , char *argv[])
                 send_forward_time(src_id, dst_id,0);
                 break;
             case 2:
-                printf("Enter the time in seconds : \n");
+                printf("Enter the time in milliseconds : \n");
                 scanf("%d",&val);
                 send_forward_time(src_id, dst_id, val);
                 break;
@@ -163,17 +168,17 @@ int main(int argc , char *argv[])
                 send_reverse_time(src_id,dst_id,0);
                 break;
             case 4:
-                printf("Enter the time in seconds : \n");
+                printf("Enter the time in milliseconds : \n");
                 scanf("%d",&val);
                 send_reverse_time(src_id,dst_id,val);
                 break;
             case 5:
-                printf("Enter the time for left turn in seconds : \n");
+                printf("Enter the time for left turn in milliseconds : \n");
                 scanf("%d",&val);
                 send_rotate_left(src_id,dst_id,val);
                 break;
             case 6:
-                printf("Enter the time for right movement : \n");
+                printf("Enter the time for right turn in milliseconds : \n");
                 scanf("%d",&val);
                 send_rotate_right(src_id,dst_id,val);
                 break;
@@ -198,11 +203,6 @@ int main(int argc , char *argv[])
                 printf("RSSI reading : %ld\n",get_RSSI(src_id,dst_id));
                 break;
             case 10:
-            while(counter_d < 125){
-                idbot = get_botID(con_count-1);
-                //printf("Fetchng ID\n");
-                printf("ID of the bot : %d\n",idbot);
-                counter_d++;}
                 idbot = get_botID(con_count-1);
                 printf("ID of the bot : %d\n",idbot);
                 break;
@@ -210,6 +210,7 @@ int main(int argc , char *argv[])
                 read_file();
                 break;
             case 12:
+                //create/append ressi_readings.txt
                 fptr = fopen("rssi_readings.txt","a");
                 if(fptr == NULL){
                     printf("ERROR!");
@@ -217,7 +218,9 @@ int main(int argc , char *argv[])
                 }
 
                 printf("Getting initial distance and RSSI data...\n");
+                //Do measurement on 8 different distance
                 while(counter_d < 8){
+                    //Do RSSI readings 20x
                     while(counter_rssi < 20){
                         printf("Reading Ultrasonic\n");
                         dis_val = get_obstacle_data(src_id,dst_id,ULTRASONIC_FRONT);
@@ -226,20 +229,25 @@ int main(int argc , char *argv[])
                         rssi_val = get_RSSI(src_id,dst_id);
                         // sleep(2);
                         printf("%d,%d,%ld\n", counter_d, dis_val, rssi_val);
+                        
+                        //output reading to txt file
                         fprintf(fptr, "%d,%d,%ld\n", counter_d, dis_val, rssi_val);
                         
                         counter_rssi++;
                     }
                     counter_rssi = 0;
-                    send_forward_time(src_id, dst_id, 1);
+                    
+                    send_forward_time(src_id, dst_id, 1000); //move bot forward 1s
                     sleep(1);
                     counter_d++;
                 }
                 counter_d = 0;
                 fclose(fptr);
                 break;
+        
             case 13:
                 rssi_val = get_RSSI(src_id, dst_id);
+                //run python script on terminal to get rssi
                 FILE *fppy;
                 char cmd[100];
                 char resp[100];
@@ -254,9 +262,44 @@ int main(int argc , char *argv[])
                 
                 pclose(fppy);
                 break;
+
+            case 14:
+                if(mode1_tog == 0 && mode2_tog == 1) {
+                    printf("Deactivate mode 2 first!\n");
+                    break;
+                }
+                else if(mode1_tog == 0 && mode2_tog == 0){
+                    mode1_tog = 1;
+                    printf("Mode 1 activated!\n");
+                    break;
+                }
+                else if(mode1_tog == 1){
+                    mode1_tog = 0;
+                    printf("Mode 1 deactivated!\n");
+                    break;
+                }
+                break;
+
+            case 15:
+                if(mode1_tog == 1 && mode2_tog == 0) {
+                    printf("Deactivate mode 1 first!\n");
+                    break;
+                }
+                else if(mode1_tog == 0 && mode2_tog == 0){
+                    mode2_tog = 1;
+                    printf("Mode 2 activated!\n");
+                    break;
+                }
+                else if(mode2_tog == 1){
+                    mode2_tog = 0;
+                    printf("Mode 2 deactivated!\n");
+                    break;
+                }
+                break;
             default:
                 printf("Unknown command received\n");
                 break;
+
 
         }
         // system("clear");
