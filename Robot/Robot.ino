@@ -153,7 +153,7 @@ ISR(TIMER1_OVF_vect)
   case TURNLEFT:
   case TURNRIGHT:
   case MOVEBACKTIME:
-  if(((uint16_t)(millis()/1000) - tempMovementTime) >= movementTime)
+  if(((uint16_t)(millis()) - tempMovementTime) >= movementTime)
                       {
                         stopMotors();  
                         Command = NOCOMMAND; 
@@ -271,7 +271,7 @@ void moveForwardForTime(uint8_t data)
 {
   moveForward();
   movementTime = data;
-  tempMovementTime = (uint16_t)(millis()/1000);
+  tempMovementTime = (uint16_t)(millis());
   Command = MOVEFORWARDTIME;
 }
 
@@ -280,7 +280,7 @@ void moveBackForTime(uint8_t data)
 {
   moveBack();
   movementTime = data;
-  tempMovementTime = (uint16_t)(millis()/1000);
+  tempMovementTime = (uint16_t)(millis());
   Command = MOVEBACKTIME;
 }
 
@@ -318,7 +318,7 @@ void turnLeft(uint8_t data)
   digitalWrite(MOTOR_BACK_RIGHT_P,HIGH);
   digitalWrite(MOTOR_BACK_RIGHT_N,LOW);  
   movementTime = data;
-  tempMovementTime = (uint16_t)(millis()/1000);
+  tempMovementTime = (uint16_t)(millis());
   Command = TURNLEFT;
 }
 
@@ -338,7 +338,7 @@ void turnRight(uint8_t data)
   digitalWrite(MOTOR_BACK_RIGHT_P,LOW);
   digitalWrite(MOTOR_BACK_RIGHT_N,HIGH); 
   movementTime = data;
-  tempMovementTime = (uint16_t)(millis()/1000);
+  tempMovementTime = (uint16_t)(millis());
   Command = TURNRIGHT;
 }
 

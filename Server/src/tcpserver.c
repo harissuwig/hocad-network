@@ -29,6 +29,8 @@ void bot_mimick_bot();
 
 
 unsigned int con_count = 0;
+int master_node = 0;
+int slave_node = 0;
 
 int main(int argc , char *argv[])
 {
@@ -81,38 +83,45 @@ int main(int argc , char *argv[])
 
     //Accept and incoming connection
 
-    while(con_count != NUM_CONNECTIONS) {
+//     while(con_count != NUM_CONNECTIONS) {
 
-        c = sizeof(struct sockaddr_in);
-        puts("* Waiting for bots to connect");
+//         c = sizeof(struct sockaddr_in);
+//         puts("* Waiting for bots to connect");
 
-        //accept connection from an incoming client
-        client_sock[con_count] = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
-        if (client_sock[con_count] < 0)
-        {
-            perror("accept failed");
-            return 1;
-        }
-        printf("  - Accepted connection\n");
-#ifdef __DEBUG__
-        printf("Got new  sockfd %d\n",client_sock[con_count]);
-#endif
-        BOT_ID[con_count] = get_botID(con_count);
-        printf("  - Bot with ID : <%d> Connected\n",BOT_ID[con_count]);
-        con_count++;
-    }
+//         //accept connection from an incoming client
+//         client_sock[con_count] = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
+//         if (client_sock[con_count] < 0)
+//         {
+//             perror("accept failed");
+//             return 1;
+//         }
+//         printf("  - Accepted connection\n");
+// #ifdef __DEBUG__
+//         printf("Got new  sockfd %d\n",client_sock[con_count]);
+// #endif
+//         BOT_ID[con_count] = get_botID(con_count);
+//         printf("  - Bot with ID : <%d> Connected\n",BOT_ID[con_count]);
+//         con_count++;
+//     }
+    BOT_ID[0] = 3;
+    con_count = 2;
+    BOT_ID[1] = 14;
+    master_node = BOT_ID[0];
+    slave_node = BOT_ID[con_count - 1];
     printf("-----------------------------------------------------------\n");
     
     char exit = 0;
     
     while(!exit)
     {
-        printf("Select Application\n");
+        printf("Application\n");
         printf("==================\n");
-        printf("1. Test Application\n");
-        printf("2. Bot following Bot\n");
-        printf("3. Bot mimicking Bot\n");
-        printf("0. Exit\n");
+        printf("  1. Test Application\n");
+        printf("  2. Bot following Bot\n");
+        printf("  3. Bot mimicking Bot\n");
+        printf("  0. Exit\n");
+        printf("==================\n");
+        printf(" Select Application: ");
         scanf("%d", &cmd_val);
     
         switch(cmd_val)
@@ -179,7 +188,7 @@ void test_application()
                 send_forward_time(src_id, dst_id,0);
                 break;
             case 2:
-                printf("Enter the time in seconds : \n");
+                printf("Enter the time in milliseconds : \n");
                 scanf("%d",&val);
                 send_forward_time(src_id, dst_id, val);
                 break;
@@ -187,17 +196,17 @@ void test_application()
                 send_reverse_time(src_id,dst_id,0);
                 break;
             case 4:
-                printf("Enter the time in seconds : \n");
+                printf("Enter the time in milliseconds : \n");
                 scanf("%d",&val);
                 send_reverse_time(src_id,dst_id,val);
                 break;
             case 5:
-                printf("Enter the time for left turn in seconds : \n");
+                printf("Enter the time for left turn in milliseconds : \n");
                 scanf("%d",&val);
                 send_rotate_left(src_id,dst_id,val);
                 break;
             case 6:
-                printf("Enter the time for right movement : \n");
+                printf("Enter the time for right turn in millisecond : \n");
                 scanf("%d",&val);
                 send_rotate_right(src_id,dst_id,val);
                 break;
@@ -248,17 +257,30 @@ void test_application()
  */
 void bot_follow_bot()
 {
+    printf("\n\n\n");
     if(con_count != 2)
     {
        printf("You need exactly two number of Bots for this application");
        return;
     }
-    
-    printf("Select the leader Bot");
-    
-    
-    printf("Select the slave Bot");
+    printf("List of connected bot: ");
+    int j = 0;
+    int new_master;
+    while(j < con_count) {
+        printf("%d", BOT_ID[j]);
+        if(BOT_ID[j] == master_node) printf(" (leader)");
+        
+        j++;
+        if(j != con_count) printf(", ");
+        else printf("\n");
+    }
 
+    printf("Select the leader bot: ");
+    scanf("%d", &master_node);
+    
+    printf("Select the slave bot: ");
+    scanf("%d", &slave_node);
+    printf("\n\n\n");
 }
 
 void bot_mimick_bot()
