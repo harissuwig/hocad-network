@@ -110,11 +110,11 @@ int main(int argc , char *argv[])
     slave_node = BOT_ID[con_count - 1];
     printf("-----------------------------------------------------------\n");
     
-    char exit = 0;
+    char end_loop = 0;
     
-    while(!exit)
+    while(!end_loop)
     {
-        printf("Application\n");
+        printf(" Application\n");
         printf("==================\n");
         printf("  1. Test Application\n");
         printf("  2. Bot following Bot\n");
@@ -133,7 +133,7 @@ int main(int argc , char *argv[])
             case 3:  bot_mimick_bot();
                      break;
             case 0:  printf("Exiting App ... \n");
-                     exit = 1;
+                     end_loop = 1;
                      break;
             default: printf("wrong command!\n");
                      break;
@@ -154,9 +154,9 @@ void test_application()
 {
         int val;
         int cmd_val = 0;
-        char exit = 0;
+        char end_loop = 0;
 
-        while(!exit) {
+        while(!end_loop) {
 
         printf("Enter Bot ID to send the packet\n");
         scanf("%d",&dst_id);
@@ -177,11 +177,12 @@ void test_application()
         printf("  9. Get RSSI value\n");
         printf("  10. Get ID\n");
         printf("  11. Execute commands from file (cmd_file.txt)\n");
+        printf("  12. Distance + RSSI Measurement\n"); 
         printf("  0.  Exit this App ...\n");
         printf(" Waiting for user input : "); 
 
         scanf("%d",&cmd_val);        
-
+        FILE *fptr;
         switch(cmd_val) {
 
             case 1:
@@ -237,8 +238,47 @@ void test_application()
             case 11:
                 read_file();
                 break;
+            case 12:
+                //create/append rssi_readings.txt
+                
+                fptr = fopen("rssi_readings.txt","a");
+                if(fptr == NULL){
+                    printf("ERROR!");
+                    exit(1);
+                }
+                unsigned int counter_d = 0;
+                unsigned int counter_rssi = 0;
+                int dis_val = 0;
+                long rssi_val = 0;
+                printf("Getting initial distance and RSSI data...\n");
+                //Do measurement on 8 different distance
+                while(counter_d < 8){
+                    //Do RSSI readings 20x
+                    while(counter_rssi < 20){
+                        printf("Reading Ultrasonic\n");
+                        dis_val = get_obstacle_data(src_id,dst_id,ULTRASONIC_FRONT);
+                        // sleep(2);
+                        printf("Reading RSSI..\n");
+                        rssi_val = get_RSSI(src_id,dst_id);
+                        // sleep(2);
+                        printf("%d,%d,%ld\n", counter_d, dis_val, rssi_val);
+                        
+                        //output reading to txt file
+                        fprintf(fptr, "%d,%d,%ld\n", counter_d, dis_val, rssi_val);
+                        
+                        counter_rssi++;
+                    }
+                    counter_rssi = 0;
+                    
+                    send_forward_time(src_id, dst_id, 1000); //move bot forward 1s
+                    sleep(1);
+                    counter_d++;
+                }
+                counter_d = 0;
+                fclose(fptr);
+                break;
             case 0: 
-                exit = 1; 
+                end_loop = 1; 
                 break;
             default:
                 printf("Unknown command received\n");
@@ -285,7 +325,30 @@ void bot_follow_bot()
 
 void bot_mimick_bot()
 {
+    printf("\n\n\n");
+    if(con_count != 2)
+    {
+       printf("You need exactly two number of Bots for this application");
+       return;
+    }
+    printf("List of connected bot: ");
+    int j = 0;
+    int new_master;
+    while(j < con_count) {
+        printf("%d", BOT_ID[j]);
+        if(BOT_ID[j] == master_node) printf(" (leader)");
+        
+        j++;
+        if(j != con_count) printf(", ");
+        else printf("\n");
+    }
 
+    printf("Select the leader bot: ");
+    scanf("%d", &master_node);
+    
+    printf("Select the slave bot: ");
+    scanf("%d", &slave_node);
+    printf("\n\n\n");
 
 
 }
