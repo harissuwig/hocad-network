@@ -257,7 +257,7 @@ void bot_follow_bot()
     printf("Select the leader Bot");
     
     
-    printf("Select the slave Bot")
+    printf("Select the slave Bot");
 
 }
 
