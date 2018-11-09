@@ -83,29 +83,29 @@ int main(int argc , char *argv[])
 
     //Accept and incoming connection
 
-//     while(con_count != NUM_CONNECTIONS) {
+    while(con_count != NUM_CONNECTIONS) {
 
-//         c = sizeof(struct sockaddr_in);
-//         puts("* Waiting for bots to connect");
+        c = sizeof(struct sockaddr_in);
+        puts("* Waiting for bots to connect");
 
-//         //accept connection from an incoming client
-//         client_sock[con_count] = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
-//         if (client_sock[con_count] < 0)
-//         {
-//             perror("accept failed");
-//             return 1;
-//         }
-//         printf("  - Accepted connection\n");
-// #ifdef __DEBUG__
-//         printf("Got new  sockfd %d\n",client_sock[con_count]);
-// #endif
-//         BOT_ID[con_count] = get_botID(con_count);
-//         printf("  - Bot with ID : <%d> Connected\n",BOT_ID[con_count]);
-//         con_count++;
-//     }
-    BOT_ID[0] = 3;
-    con_count = 2;
-    BOT_ID[1] = 14;
+        //accept connection from an incoming client
+        client_sock[con_count] = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
+        if (client_sock[con_count] < 0)
+        {
+            perror("accept failed");
+            return 1;
+        }
+        printf("  - Accepted connection\n");
+#ifdef __DEBUG__
+        printf("Got new  sockfd %d\n",client_sock[con_count]);
+#endif
+        BOT_ID[con_count] = get_botID(con_count);
+        printf("  - Bot with ID : <%d> Connected\n",BOT_ID[con_count]);
+        con_count++;
+    }
+    // BOT_ID[0] = 3;
+    // con_count = 2;
+    // BOT_ID[1] = 14;
     master_node = BOT_ID[0];
     slave_node = BOT_ID[con_count - 1];
     printf("-----------------------------------------------------------\n");
