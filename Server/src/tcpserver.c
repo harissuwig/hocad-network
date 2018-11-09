@@ -18,7 +18,10 @@
 #include <unistd.h>   
 #include "AdhocServer.h"
 #include "CommandList.h"
+#include <poll.h>
 
+#define KNNWIND0W 4
+#define DELTA 3 //3 cm error margin
 
 //#define __DEBUG__ 1
 
@@ -26,7 +29,7 @@
 void test_application();
 void bot_follow_bot();
 void bot_mimick_bot();
-
+double slaveDistanceGapKNN(long * leaderRSSI, long * slaveRSSI, unsigned int requiredGap);
 
 unsigned int con_count = 0;
 int master_node = 0;
@@ -294,9 +297,22 @@ void test_application()
 
 /*! 
  * \Brief test basic functionalities of both Bots and connection between them 
+ * 
  */
 void bot_follow_bot()
 {
+    int val = 1000; // 1000 millisecond, for forward and reverse movement
+    char end_loop = 0; 
+    int cmd_val = 0;
+    long leaderRSSI[KNNWIND0W] = { 0 };
+    long slaveRSSI[KNNWIND0W] = { 0 };
+    double distanceFromLeader;
+    double DistanceToTimeScale = 1; // scale converstion from distance to time of movement scale 
+    unsigned int requiredGap = 100; // current gap to maintain between the leader and the maste
+    
+    //variables for timed input
+    struct pollfd mypoll = { STDIN_FILENO, POLLIN|POLLPRI };
+    
     printf("\n\n\n");
     if(con_count != 2)
     {
@@ -308,8 +324,7 @@ void bot_follow_bot()
     int new_master;
     while(j < con_count) {
         printf("%d", BOT_ID[j]);
-        if(BOT_ID[j] == master_node) printf(" (leader)");
-        
+        if(BOT_ID[j] == master_node) printf(" (leader)");        
         j++;
         if(j != con_count) printf(", ");
         else printf("\n");
@@ -321,6 +336,54 @@ void bot_follow_bot()
     printf("Select the slave bot: ");
     scanf("%d", &slave_node);
     printf("\n\n\n");
+    
+    printf("Select Master Action\n");
+    printf("====================\n");
+    printf("1. Move Forward\n");
+    printf("2. Move Reverse\n");
+    
+    //timed input
+    while(!end_loop)
+    {
+        if( poll(&mypoll, 1, 1000) )
+        {
+            scanf("%d", &cmd_val);
+        
+            switch(cmd_val)
+            {
+                case 1: send_forward_time(src_id, master_node, val);
+                        break;
+                case 2: send_reverse_time(src_id,master_node, val);
+                        break;
+                default: printf("Exiting App ... \n"); 
+                           end_loop = 1;
+                           break; 
+            }
+       
+        }
+        
+        //measure RSSI of leader and servant
+        for(int i = 0; i < KNNWIND0W; i++)
+        {
+            leaderRSSI[i] = get_RSSI(src_id,master_node);
+            slaveRSSI[i] = get_RSSI(src_id,slave_node);
+        }
+        
+        //if difference gives positive, we move forward; if difference give negative, we move backward
+        distanceFromLeader = slaveDistanceGapKNN(leaderRSSI, slaveRSSI, requiredGap);
+        
+        
+        if(distanceFromLeader > DELTA)
+        {
+            send_forward_time(src_id,slave_node,distanceFromLeader*DistanceToTimeScale);
+        }
+        else if ((-1*distanceFromLeader) > DELTA)
+        {
+            send_reverse_time(src_id,slave_node,distanceFromLeader*DistanceToTimeScale);
+        }
+    } 
+    
+    
 }
 
 void bot_mimick_bot()
@@ -344,11 +407,22 @@ void bot_mimick_bot()
     }
 
     printf("Select the leader bot: ");
-    scanf("%d", &master_node);
+    scanf("%d",&master_node);
     
     printf("Select the slave bot: ");
     scanf("%d", &slave_node);
     printf("\n\n\n");
 
 
+}
+
+
+double slaveDistanceGapKNN(long * leaderRSSI, long * slaveRSSI, unsigned int requiredGap) //leaderRSSI and slaveRSSI array of size KNNWINDOW
+{
+//KNNWIND0W 
+// both from leaderRSSI and slaveRSSI, remove extreme value
+// for both the leader and slave calculate distance from the KNN table for each member
+// again remove the estreme and calculate the average of the results bot for leader and slave
+// Return requiredGap - (slave - distance)  (assuming the forward direction is towards AP)
+return 0.0;
 }
