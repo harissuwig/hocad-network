@@ -22,6 +22,12 @@
 
 //#define __DEBUG__ 1
 
+//Applications 
+void test_application();
+void bot_follow_bot();
+void bot_mimick_bot();
+
+
 unsigned int con_count = 0;
 
 int main(int argc , char *argv[])
@@ -29,7 +35,6 @@ int main(int argc , char *argv[])
     int socket_desc , c , read_size;
     struct sockaddr_in server , client;
     int cmd_val= 0; 
-    int val;
     int  ret = 0;
     int i = 0;
     if (argc != 2) {
@@ -97,8 +102,52 @@ int main(int argc , char *argv[])
         con_count++;
     }
     printf("-----------------------------------------------------------\n");
+    
+    char exit = 0;
+    
+    while(!exit)
+    {
+        printf("Select Application\n");
+        printf("==================\n");
+        printf("1. Test Application\n");
+        printf("2. Bot following Bot\n");
+        printf("3. Bot mimicking Bot\n");
+        printf("0. Exit\n");
+        scanf("%d", &cmd_val);
+    
+        switch(cmd_val)
+        {
+            case 1:  test_application();
+                     break;
+            case 2:  bot_follow_bot();
+                     break; 
+            case 3:  bot_mimick_bot();
+                     break;
+            case 0:  printf("Exiting App ... \n");
+                     exit = 1;
+                     break;
+            default: printf("wrong command!\n");
+                     break;
+        }
 
-    while(1) {
+    
+    }
+    
+    //free malloced variables
+    return 0;
+}
+
+/*! 
+ * \Brief test basic functionalities of both Bots and connection between them 
+ */
+
+void test_application()
+{
+        int val;
+        int cmd_val = 0;
+        char exit = 0;
+
+        while(!exit) {
 
         printf("Enter Bot ID to send the packet\n");
         scanf("%d",&dst_id);
@@ -106,7 +155,7 @@ int main(int argc , char *argv[])
         printf("Enter the command(1-12) to the bot-%d : \n",dst_id);
 
 
-        printf("  1. Move forward \n"); 
+        printf("  1. Move forward \n");
         printf("  2. Move forward for time in seconds \n"); 
         printf("  3. Move reverse \n"); 
         printf("  4. Move reverse for time in seconds \n"); 
@@ -119,6 +168,7 @@ int main(int argc , char *argv[])
         printf("  9. Get RSSI value\n");
         printf("  10. Get ID\n");
         printf("  11. Execute commands from file (cmd_file.txt)\n");
+        printf("  0.  Exit this App ...\n");
         printf(" Waiting for user input : "); 
 
         scanf("%d",&cmd_val);        
@@ -178,13 +228,42 @@ int main(int argc , char *argv[])
             case 11:
                 read_file();
                 break;
+            case 0: 
+                exit = 1; 
+                break;
             default:
                 printf("Unknown command received\n");
                 break;
 
         }
-        //system("clear");
 		 printf("\r\n\r\n"); 
     }
-    return 0;
+    
+    system("clear");
+
+}
+
+/*! 
+ * \Brief test basic functionalities of both Bots and connection between them 
+ */
+void bot_follow_bot()
+{
+    if(con_count != 2)
+    {
+       printf("You need exactly two number of Bots for this application");
+       return;
+    }
+    
+    printf("Select the leader Bot");
+    
+    
+    printf("Select the slave Bot")
+
+}
+
+void bot_mimick_bot()
+{
+
+
+
 }
