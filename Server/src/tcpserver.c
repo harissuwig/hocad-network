@@ -91,31 +91,34 @@ int main(int argc , char *argv[])
 
     //Accept and incoming connection
 
-//     while(con_count != NUM_CONNECTIONS) {
+    while(con_count != NUM_CONNECTIONS) {
 
-//         c = sizeof(struct sockaddr_in);
-//         puts("* Waiting for bots to connect");
+        c = sizeof(struct sockaddr_in);
+        puts("* Waiting for bots to connect");
 
-//         //accept connection from an incoming client
-//         client_sock[con_count] = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
-//         if (client_sock[con_count] < 0)
-//         {
-//             perror("accept failed");
-//             return 1;
-//         }
-//         printf("  - Accepted connection\n");
-// #ifdef __DEBUG__
-//         printf("Got new  sockfd %d\n",client_sock[con_count]);
-// #endif
-//         BOT_ID[con_count] = get_botID(con_count);
-//         printf("  - Bot with ID : <%d> Connected\n",BOT_ID[con_count]);
-//         con_count++;
-//     }
+        //accept connection from an incoming client
+        client_sock[con_count] = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
+        if (client_sock[con_count] < 0)
+        {
+            perror("accept failed");
+            return 1;
+        }
+        printf("  - Accepted connection\n");
+#ifdef __DEBUG__
+        printf("Got new  sockfd %d\n",client_sock[con_count]);
+#endif
+        BOT_ID[con_count] = get_botID(con_count);
+        printf("  - Bot with ID : <%d> Connected\n",BOT_ID[con_count]);
+        con_count++;
+    }
+    // BOT_ID[con_count] = 3;
+    // con_count++;
+    // BOT_ID[con_count] = 14;
+    // con_count++;
     printf("-----------------------------------------------------------\n");
 
-    
-    int mode1_tog = 0;
-    int mode2_tog = 0;
+    int master_node = BOT_ID[0];
+    int slave_node = BOT_ID[con_count-1];
 
     FILE *fptr;
     unsigned int counter_rssi = 0;
@@ -124,9 +127,20 @@ int main(int argc , char *argv[])
     int idbot = 0;
     long rssi_val = 0;
     int done_measure = 1;
+    
     while(done_measure) {
-
-        printf("Enter Bot ID to send the packet\n");
+        printf("-----------------------------------------------------------\n");
+        int counter_con_bot = 0;
+        printf("Connected bot: ");
+        while(counter_con_bot < con_count) {
+            printf("%d",BOT_ID[counter_con_bot]);
+            if(BOT_ID[counter_con_bot] == master_node) printf(" (master)");
+            
+            counter_con_bot++;
+            if(counter_con_bot != con_count) printf(", ");
+            else printf("\n");
+        }
+        printf("\nEnter Bot ID to send the packet\n");
         scanf("%d",&dst_id);
         // printf("Fetchng RSSI information \n");
         //         printf("RSSI reading : %ld\n",get_RSSI(src_id,dst_id));
@@ -147,9 +161,10 @@ int main(int argc , char *argv[])
         printf("  10. Get ID\n");
         printf("  11. Execute commands from file (cmd_file.txt)\n");
         printf("  12. Distance + RSSI Measurement\n");  
-        printf("  13. Get distance from RSSI\n");    
-        printf("  14. Toggle follow leader mode 1, state: %d\n",mode1_tog);
-        printf("  15. Toggle follow leader mode 2, state: %d\n",mode2_tog);
+        printf("  13. Get distance from RSSI\n");
+        printf("  14. Set bot master, current master: %d\n", master_node);
+        printf("  15. Follow leader mode 1\n");
+        printf("  16. Follow leader mode 2\n");
         printf(" Waiting for user input : "); 
         
         scanf("%d",&cmd_val);        
@@ -244,57 +259,50 @@ int main(int argc , char *argv[])
                 counter_d = 0;
                 fclose(fptr);
                 break;
-        
+
             case 13:
-                rssi_val = get_RSSI(src_id, dst_id);
-                //run python script on terminal to get rssi
-                FILE *fppy;
-                char cmd[100];
-                char resp[100];
-                sprintf(cmd, "python knn.py rssi_readings.csv %ld",rssi_val);
-                fppy = popen(cmd, "r");
-                if (fppy ==NULL){
-                    printf("Failed\n");
-                    exit(1);
-                }
-                while(fgets(resp, sizeof(resp), fppy) != NULL)
-                    printf("%s\n",resp);
+                // rssi_val = get_RSSI(src_id, dst_id);
+                // //run python script on terminal to get rssi
+                // FILE *fppy;
+                // char cmd[100];
+                // char resp[100];
+                // sprintf(cmd, "python knn.py rssi_readings.csv %ld",rssi_val);
+                // fppy = popen(cmd, "r");
+                // if (fppy == NULL){
+                //     printf("Failed\n");
+                //     exit(1);
+                // }
+                // while(fgets(resp, sizeof(resp), fppy) != NULL)
+                //     printf("%s\n",resp);
                 
-                pclose(fppy);
+                // pclose(fppy);
                 break;
 
             case 14:
-                if(mode1_tog == 0 && mode2_tog == 1) {
-                    printf("Deactivate mode 2 first!\n");
-                    break;
+                //change master
+                printf("List of bot:\n");
+                int j = 0;
+                int new_master;
+                while(j < con_count) {
+                    printf("%d",BOT_ID[j]);
+                    if(BOT_ID[j] == master_node) printf(" (master)");
+                    
+                    j++;
+                    if(j != con_count) printf(", ");
+                    else printf("\n");
                 }
-                else if(mode1_tog == 0 && mode2_tog == 0){
-                    mode1_tog = 1;
-                    printf("Mode 1 activated!\n");
-                    break;
-                }
-                else if(mode1_tog == 1){
-                    mode1_tog = 0;
-                    printf("Mode 1 deactivated!\n");
-                    break;
-                }
+                printf("\nEnter new master node: ");
+                scanf("%d", &new_master);
+                slave_node = master_node;
+                master_node = new_master;
                 break;
 
             case 15:
-                if(mode1_tog == 1 && mode2_tog == 0) {
-                    printf("Deactivate mode 1 first!\n");
-                    break;
-                }
-                else if(mode1_tog == 0 && mode2_tog == 0){
-                    mode2_tog = 1;
-                    printf("Mode 2 activated!\n");
-                    break;
-                }
-                else if(mode2_tog == 1){
-                    mode2_tog = 0;
-                    printf("Mode 2 deactivated!\n");
-                    break;
-                }
+                //insert algorithm for mode 1 here
+                break;
+
+            case 16:
+                //insert algorithm for mode 2 here
                 break;
             default:
                 printf("Unknown command received\n");
