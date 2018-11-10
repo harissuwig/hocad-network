@@ -304,7 +304,7 @@ int get_obstacle_data(int src,int dst,int sensor_num) {
 
     }
     memset(client_message,'\0',1024);
-    int client_index = get_index(dst_id);
+    int client_index = get_index(dst);
     ret = recv(client_sock[client_index] , client_message ,1024, 0);
    
     value = get_data(client_message);
