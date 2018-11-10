@@ -69,8 +69,10 @@ uint8_t matrix[NODECOUNT][NODECOUNT]={{0,1,0,1,1,1,0,1,0,0,0,0,0,1,0,1},
                                       {0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,1},
                                       {0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,0}};
 char ssid[] = "internet";
-char password[] = "connectplease";
+char password[] = "12348765";
 char ip[] = {192,168,43,49};
+
+#define BOTID 6
 
 uint8_t Command = 0;
 long Rssi = 0;
@@ -495,7 +497,7 @@ void sendPacket(uint8_t src, uint8_t dst, uint8_t internal, uint8_t isTCP, uint8
 void setup() 
 {
 Serial.begin(115200);
-setID(15);
+setID(BOTID);
 nodeID = getID();
 packetSerial.setPacketHandler(&onPacket);
 packetSerial.begin(115200);
@@ -552,4 +554,3 @@ void OnReceive(uint8_t src, uint8_t dst, uint8_t internal, uint8_t tcp, uint8_t 
       handleCommands(src, dst, internal, tcp, fwd, counterH, counterL, datalen, command, data);
   }
 }
-
