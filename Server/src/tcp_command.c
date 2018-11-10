@@ -198,7 +198,7 @@ long get_RSSI(int src,int dst) {
     int ret = 0;
     char *value = NULL;
     char data;
-    int client_index = get_index(dst_id);
+    int client_index = get_index(dst);
     
     data = GET_RSSI;
     create_packet(src,dst,sizeof(data),&data);
@@ -456,7 +456,7 @@ void create_packet(int src,int dst, char length,char *data)
     }
     
     packet=(char*)calloc(11 +length,sizeof(char));
-
+    if(counter == 0x81) counter = 0;
     packet[0]= START_MARKER;
     packet[PACKET_START_BYTE_LOC + 1] = 0xFF;
     packet[PACKET_SRC_LOC + 1] = src;
@@ -500,7 +500,7 @@ void create_packet_ID(char length,char *data,int client_index)
     char *packet;
 
     packet=(char*)calloc(11 +length,sizeof(char));
-
+    if(counter == 0x81) counter = 0;
 
     packet[0]= START_MARKER;
     packet[PACKET_START_BYTE_LOC + 1] = 0xFF;
