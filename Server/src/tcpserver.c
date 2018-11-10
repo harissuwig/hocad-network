@@ -242,39 +242,44 @@ void test_application()
                 read_file();
                 break;
             case 12:
-                //create/append rssi_readings.txt
+                //create/append rssi_readings.csv
                 
-                fptr = fopen("rssi_readings.txt","a");
+                fptr = fopen("rssi_readings.csv","a");
                 if(fptr == NULL){
                     printf("ERROR!");
                     exit(1);
                 }
                 unsigned int counter_d = 0;
                 unsigned int counter_rssi = 0;
-                int dis_val = 0;
-                long rssi_val = 0;
+                int dis_val1 = 0;
+                int dis_val2 = 0;
+                long rssi_val1 = 0;
+                long rssi_val2 = 0;
                 printf("Getting initial distance and RSSI data...\n");
                 //Do measurement on 8 different distance
                 while(counter_d < 8){
                     //Do RSSI readings 20x
                     while(counter_rssi < 20){
                         printf("Reading Ultrasonic\n");
-                        dis_val = get_obstacle_data(src_id,dst_id,ULTRASONIC_FRONT);
+                        dis_val1 = get_obstacle_data(src_id,master_node,ULTRASONIC_FRONT);
+                        dis_val2 = get_obstacle_data(src_id,slave_node,ULTRASONIC_FRONT);
                         // sleep(2);
                         printf("Reading RSSI..\n");
-                        rssi_val = get_RSSI(src_id,dst_id);
+                        rssi_val1 = get_RSSI(src_id,master_node);
+                        rssi_val2 = get_RSSI(src_id,slave_node);
                         // sleep(2);
-                        printf("%d,%d,%ld\n", counter_d, dis_val, rssi_val);
                         
                         //output reading to txt file
-                        fprintf(fptr, "%d,%d,%ld\n", counter_d, dis_val, rssi_val);
+                        fprintf(fptr, "%ld,%ld,%d,%d\n", rssi_val1, rssi_val2, dis_val1, dis_val2);
                         
                         counter_rssi++;
                     }
+                    
                     counter_rssi = 0;
                     
                     send_forward_time(src_id, dst_id, 1000); //move bot forward 1s
                     sleep(1);
+                    printf("%d\n",counter_d);
                     counter_d++;
                 }
                 counter_d = 0;
