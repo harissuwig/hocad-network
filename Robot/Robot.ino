@@ -71,7 +71,7 @@ uint8_t matrix[NODECOUNT][NODECOUNT]={{0,1,0,1,1,1,0,1,0,0,0,0,0,1,0,1},
                                       {0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,0}};
 char ssid[] = "internet";
 char password[] = "12348765";
-char ip[] = {192,168,43,69};
+char ip[] = {192,168,0,132};
 
 #define BOTID 17
 
@@ -80,7 +80,7 @@ long Rssi = 0;
 unsigned long distance = 0;
 
 uint8_t nodeID = 0;
-uint8_t movementTime = 0;
+unsigned long movementTime = 0;
 uint16_t tempMovementTime = 0;
 
 uint16_t PacketCounter = 0;
@@ -107,14 +107,14 @@ void handleCommands(uint8_t src, uint8_t dst, uint8_t internal, uint8_t tcp, uin
                          moveForward();
                          break;
 
-      case MOVEFORWARDTIME: moveForwardForTime(*data);
+      case MOVEFORWARDTIME: moveForwardForTime(data);
                             break;
 
       case MOVEBACK: Command = MOVEBACK; 
                      moveBack();
                      break;
                      
-      case MOVEBACKTIME: moveBackForTime(*data);
+      case MOVEBACKTIME: moveBackForTime(data);
                          break;
                          
       case STOP: Command = STOP; 
@@ -280,20 +280,30 @@ void stopMotors()
   delay(200);  
 }
 
+#define lowByte(MSG)    ((uint8_t)((MSG) & 0xFF))
+#define highByte(MSG)   ((uint8_t)((MSG) >> 8))
+#define secondByte(MSG)  ((uint8_t)(((MSG) >> 8) & 0xFF))
+#define thirdByte(MSG)  ((uint8_t)(((MSG) >> 16) & 0xFF))
+#define fourthByte(MSG)  ((uint8_t)(((MSG) >> 24) & 0xFF))
+#define combineByte(MSB,LSB) ((uint16_t) (((MSB) << 8) | (LSB)))
+#define combine32Byte(MSB1, MSB2, MSB3, LSB) ((uint32_t) ((MSB1 << 24) | (MSB2 << 16) | (MSB3 << 8) | LSB))
+
 //Move forward for specific time (in seconds)
-void moveForwardForTime(uint8_t data)
+void moveForwardForTime(uint8_t *data)
 {
   moveForward();
-  movementTime = data;
+  uint32_t duration = combine32Byte(data[3], data[2], data[1], data[0]);
+  movementTime = duration;
   tempMovementTime = (uint16_t)(millis());
   Command = MOVEFORWARDTIME;
 }
 
 //Move back for specific time (in seconds)
-void moveBackForTime(uint8_t data)
+void moveBackForTime(uint8_t *data)
 {
   moveBack();
-  movementTime = data;
+  uint32_t duration = combine32Byte(data[3], data[2], data[1], data[0]);
+  movementTime = duration;
   tempMovementTime = (uint16_t)(millis());
   Command = MOVEBACKTIME;
 }

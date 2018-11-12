@@ -360,25 +360,35 @@ void calibrate_mode(int ind){
     int dis_val2 = 0;
     long rssi_val1 = 0;
     long rssi_val2 = 0;
+    printf("Backward (ms): ");
+    unsigned long bwdis = 0;
+    scanf(" %ld", &bwdis);
+    printf("Forward (ms): ");
+    unsigned long fwdis = 0;
+    scanf(" %ld", &fwdis);
+    
     printf("Getting initial distance and RSSI data...\n");
     //Do measurement on 8 different distance
     fprintf(fptr, "rssi_%d,rssi_%d,dis_%d,dis_%d\n", master_node, slave_node, master_node, slave_node);
     unsigned int counter_fb = 0;
-    while(counter_fb < 2){
-    while(counter_d < 2){
+    while(counter_fb < 1){
+    while(counter_d < 15){
         //Do RSSI readings 20x
         send_toggle_led(src_id, master_node, 1);
         send_toggle_led(src_id, slave_node, 1);
     
-        while(counter_rssi < 5){
+        while(counter_rssi < 10){
             send_toggle_led(src_id, master_node, 2);
             send_toggle_led(src_id, slave_node, 2);
-            // printf("Reading Ultrasonic\n");
+            printf("Reading Ultrasonic\n");
             dis_val1 = get_obstacle_data(src_id,master_node,ULTRASONIC_FRONT);
+            usleep(100000);
             dis_val2 = get_obstacle_data(src_id,slave_node,ULTRASONIC_FRONT);
             // sleep(2);
-            // printf("Reading RSSI..\n");
+            printf("Reading RSSI..\n");
+            usleep(100000);
             rssi_val1 = get_RSSI(src_id,master_node);
+            usleep(100000);
             rssi_val2 = get_RSSI(src_id,slave_node);
             // sleep(2);
             
@@ -386,8 +396,8 @@ void calibrate_mode(int ind){
             fprintf(fptr, "%ld,%ld,%d,%d\n", rssi_val1, rssi_val2, dis_val1, dis_val2);
             
             counter_rssi++;
-            send_toggle_led(src_id, master_node, 2);
-            send_toggle_led(src_id, slave_node, 2);
+            // send_toggle_led(src_id, master_node, 2);
+            // send_toggle_led(src_id, slave_node, 2);
             
             usleep(100000);
             
@@ -395,19 +405,20 @@ void calibrate_mode(int ind){
         
         counter_rssi = 0;
         if(counter_fb % 2 != 0) {
-            send_forward_time(src_id, master_node, 1000); //move bot forward 1s
-            send_forward_time(src_id, slave_node, 1000);
+            send_forward_time(src_id, master_node, fwdis); //move bot forward 1s
+            send_forward_time(src_id, slave_node, fwdis);
         }
         else {
-            send_reverse_time(src_id, master_node, 1000); //move bot backward 1s
-            send_reverse_time(src_id, slave_node, 1000);
+            send_reverse_time(src_id, master_node, bwdis); //move bot backward 1s
+            send_reverse_time(src_id, slave_node, bwdis);
         }
-        send_toggle_led(src_id, master_node, 1);
-        send_toggle_led(src_id, slave_node, 1);
+        // send_toggle_led(src_id, master_node, 1);
+        // send_toggle_led(src_id, slave_node, 1);
         
-        sleep(1);
+        
         printf("Iteration: %d\n",counter_d);
         counter_d++;
+        sleep(1);
     }
     counter_d = 0;
     counter_fb++;
