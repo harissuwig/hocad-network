@@ -40,6 +40,7 @@
 #define DISTANCEFRONT 0x0A
 #define GETHEADING 0x0D 
 #define GETID 0x0F
+#define TOGGLELED 0x11
 
 //Internal commands, communicated with ESP32
 #define INT_ID 0x01
@@ -70,9 +71,9 @@ uint8_t matrix[NODECOUNT][NODECOUNT]={{0,1,0,1,1,1,0,1,0,0,0,0,0,1,0,1},
                                       {0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,0}};
 char ssid[] = "internet";
 char password[] = "12348765";
-char ip[] = {192,168,43,49};
+char ip[] = {192,168,43,69};
 
-#define BOTID 6
+#define BOTID 17
 
 uint8_t Command = 0;
 long Rssi = 0;
@@ -88,6 +89,11 @@ long RSSI_Value = 0;
 PacketSerial packetSerial;
 
 uint8_t dat[2];
+
+bool state_led1 = false;
+bool state_led2 = false;
+bool state_led3 = false;
+bool state_led4 = false;
 
 //Handle commands. USER CAN ADD MODE COMMANDS IF NECESSARY
 void handleCommands(uint8_t src, uint8_t dst, uint8_t internal, uint8_t tcp, uint8_t fwd, uint8_t counterH, uint8_t counterL, uint8_t datalen, uint8_t command, uint8_t *data)
@@ -139,6 +145,12 @@ void handleCommands(uint8_t src, uint8_t dst, uint8_t internal, uint8_t tcp, uin
                   tempData[1] = nodeID;
                   sendPacket(dst, src, internal, tcp, ACK, counterH, counterL, 2, tempData);
                   break; 
+      
+      case TOGGLELED: if(data[0] == 1) {state_led1 = !state_led1; setLED(REDLED, state_led1);}
+                      else if(data[0] == 3) {state_led2 = !state_led2;setLED(WHITELED, state_led2);}
+                      else if(data[0] == 2) {state_led3 = !state_led3;setLED(YELLOWLED, state_led3);}
+                      else if(data[0] == 4) {state_led4 = !state_led4;setLED(ORANGELED, state_led4);}
+                      break;
     }
   }
 

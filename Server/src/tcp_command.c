@@ -388,7 +388,7 @@ void send_forward_dist(int src,int dst,char dist) {
  * Can be useful in future when Hall effect sensor
  * is available on the bot
  */
-void send_reverse_time(int src,int dst,char time) {
+void send_reverse_time(int src,int dst,int time) {
 
     if(time == 0) {
         char data = MOVE_REVERSE;
@@ -415,6 +415,13 @@ void send_reverse_dist(int src,int dst,char dist) {
         create_packet(src,dst,sizeof(data),data);
     }
 
+}
+
+void send_toggle_led(int src,int dst,char ledno){
+    char data[2];
+    data[0] = TOGGLE_LED;
+    data[1] = ledno;
+    create_packet(src,dst,sizeof(data),data);
 }
 
 /*
@@ -456,7 +463,7 @@ void create_packet(int src,int dst, char length,char *data)
     }
     
     packet=(char*)calloc(11 +length,sizeof(char));
-    if(counter == 0x81) counter = 0;
+    if(counter == 0x80) counter = 0;
     packet[0]= START_MARKER;
     packet[PACKET_START_BYTE_LOC + 1] = 0xFF;
     packet[PACKET_SRC_LOC + 1] = src;
@@ -500,7 +507,7 @@ void create_packet_ID(char length,char *data,int client_index)
     char *packet;
 
     packet=(char*)calloc(11 +length,sizeof(char));
-    if(counter == 0x81) counter = 0;
+    if(counter == 0x80) counter = 0;
 
     packet[0]= START_MARKER;
     packet[PACKET_START_BYTE_LOC + 1] = 0xFF;

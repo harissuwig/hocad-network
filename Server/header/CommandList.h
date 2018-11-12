@@ -64,6 +64,12 @@
 #define GET_RSSI 0x0E
 #define GET_ID 0x0F
 #define SET_ID 0x10
+#define TOGGLE_LED 0x11
+
+#define REDLED 1
+#define WHITELED 2
+#define YELLOWLED 3
+#define ORANGELED 4
 
 
 /*

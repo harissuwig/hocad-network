@@ -29,6 +29,7 @@
 void test_application();
 void bot_follow_bot();
 void bot_mimick_bot();
+void calibrate_mode(int ind);
 double slaveDistanceGapKNN(long * leaderRSSI, long * slaveRSSI, unsigned int requiredGap);
 
 unsigned int con_count = 0;
@@ -111,37 +112,63 @@ int main(int argc , char *argv[])
     // BOT_ID[1] = 14;
     master_node = BOT_ID[0];
     slave_node = BOT_ID[con_count - 1];
-    printf("-----------------------------------------------------------\n");
+    printf("-----------------------------------------------------------\n\n\n");
     
     char end_loop = 0;
     
     while(!end_loop)
     {
-        printf(" Application\n");
-        printf("==================\n");
+        printf("===========================================================\n");
+        printf(" APPLICATION\n");
+        printf("-----------------------------------------------------------\n");
+        printf(" CONNECTED BOTS: ");
+        int j = 0;
+        while(j < con_count) {
+            printf("%d", BOT_ID[j]);
+            if(BOT_ID[j] == master_node) printf(" (leader)");        
+            j++;
+            if(j != con_count) printf(", ");
+            else printf("\n");
+        }
+        printf("-----------------------------------------------------------\n");
         printf("  1. Test Application\n");
-        printf("  2. Bot following Bot\n");
-        printf("  3. Bot mimicking Bot\n");
+        printf("  2. Calibration for mode 1\n");
+        printf("  3. Bot following Bot\n");
+        printf("  4. Calibration for mode 2\n");
+        printf("  5. Bot mimicking Bot\n");
+        printf("  6. Change leader\n");
         printf("  0. Exit\n");
-        printf("==================\n");
+        printf("===========================================================\n");
         printf(" Select Application: ");
         scanf("%d", &cmd_val);
-    
+
         switch(cmd_val)
         {
             case 1:  test_application();
                      break;
-            case 2:  bot_follow_bot();
-                     break; 
-            case 3:  bot_mimick_bot();
+            case 2:  calibrate_mode(1);
                      break;
+            case 3:  bot_follow_bot();
+                     break; 
+            case 4:  calibrate_mode(2);
+                     break;
+            case 5:  bot_mimick_bot();
+                     break;
+            case 6:
+                
+                printf("\nEnter new leader node: ");
+                int new_master;
+                scanf("%d", &new_master);
+                slave_node = master_node;
+                master_node = new_master;
+                break;
             case 0:  printf("Exiting App ... \n");
                      end_loop = 1;
                      break;
             default: printf("wrong command!\n");
                      break;
         }
-
+    printf("\r\n\r\n"); 
     
     }
     
@@ -158,7 +185,7 @@ void test_application()
         int val;
         int cmd_val = 0;
         char end_loop = 0;
-
+        int ledno;
         while(!end_loop) {
 
         printf("Enter Bot ID to send the packet\n");
@@ -181,6 +208,7 @@ void test_application()
         printf("  10. Get ID\n");
         printf("  11. Execute commands from file (cmd_file.txt)\n");
         printf("  12. Distance + RSSI Measurement\n"); 
+        printf("  13. Toggle LED\n");
         printf("  0.  Exit this App ...\n");
         printf(" Waiting for user input : "); 
 
@@ -244,46 +272,58 @@ void test_application()
             case 12:
                 //create/append rssi_readings.csv
                 
-                fptr = fopen("rssi_readings.csv","a");
+                fptr = fopen("rssi_us_readings.csv","a");
                 if(fptr == NULL){
                     printf("ERROR!");
                     exit(1);
                 }
                 unsigned int counter_d = 0;
                 unsigned int counter_rssi = 0;
-                int dis_val1 = 0;
-                int dis_val2 = 0;
-                long rssi_val1 = 0;
-                long rssi_val2 = 0;
+                int dis_val = 0;
+                long rssi_val = 0;
                 printf("Getting initial distance and RSSI data...\n");
                 //Do measurement on 8 different distance
                 while(counter_d < 8){
                     //Do RSSI readings 20x
+                    send_toggle_led(src_id, dst_id, 1);
+                    
                     while(counter_rssi < 20){
-                        printf("Reading Ultrasonic\n");
-                        dis_val1 = get_obstacle_data(src_id,master_node,ULTRASONIC_FRONT);
-                        dis_val2 = get_obstacle_data(src_id,slave_node,ULTRASONIC_FRONT);
+                        send_toggle_led(src_id, dst_id, 2);
+                        //printf("Reading Ultrasonic\n");
+                        dis_val = get_obstacle_data(src_id,master_node,ULTRASONIC_FRONT);
                         // sleep(2);
-                        printf("Reading RSSI..\n");
-                        rssi_val1 = get_RSSI(src_id,master_node);
-                        rssi_val2 = get_RSSI(src_id,slave_node);
+                        //printf("Reading RSSI..\n");
+                        rssi_val = get_RSSI(src_id,master_node);
                         // sleep(2);
                         
                         //output reading to txt file
-                        fprintf(fptr, "%ld,%ld,%d,%d\n", rssi_val1, rssi_val2, dis_val1, dis_val2);
+                        fprintf(fptr, "%ld,%d\n", rssi_val, dis_val);
                         
                         counter_rssi++;
+                        send_toggle_led(src_id, dst_id, 2);
+                        
+                        usleep(100000);
+                        
                     }
                     
                     counter_rssi = 0;
                     
                     send_forward_time(src_id, dst_id, 1000); //move bot forward 1s
-                    sleep(1);
-                    printf("%d\n",counter_d);
+                    send_toggle_led(src_id, dst_id, 1);
+                    
+                    usleep(100000);
+                    //printf("%d\n",counter_d);
                     counter_d++;
                 }
                 counter_d = 0;
                 fclose(fptr);
+                break;
+            
+            case 13:
+                printf("Input LED (1-4): ");
+                
+                scanf("%d", &ledno);
+                send_toggle_led(src_id, dst_id, ledno);
                 break;
             case 0: 
                 end_loop = 1; 
@@ -298,6 +338,82 @@ void test_application()
     
     system("clear");
 
+}
+
+void calibrate_mode(int ind){
+    char ans;
+    printf("Ready to calibrate ? (y/n): ");
+    scanf(" %c", &ans);
+    if(ans == 'N' || ans == 'n') return;
+
+    FILE *fptr;
+    char filename[30];
+    sprintf(filename, "calibration_%d.csv", ind);
+    fptr = fopen(filename,"a");
+    if(fptr == NULL){
+        printf("ERROR!");
+        exit(1);
+    }
+    unsigned int counter_d = 0;
+    unsigned int counter_rssi = 0;
+    int dis_val1 = 0;
+    int dis_val2 = 0;
+    long rssi_val1 = 0;
+    long rssi_val2 = 0;
+    printf("Getting initial distance and RSSI data...\n");
+    //Do measurement on 8 different distance
+    fprintf(fptr, "rssi_%d,rssi_%d,dis_%d,dis_%d\n", master_node, slave_node, master_node, slave_node);
+    unsigned int counter_fb = 0;
+    while(counter_fb < 2){
+    while(counter_d < 2){
+        //Do RSSI readings 20x
+        send_toggle_led(src_id, master_node, 1);
+        send_toggle_led(src_id, slave_node, 1);
+    
+        while(counter_rssi < 5){
+            send_toggle_led(src_id, master_node, 2);
+            send_toggle_led(src_id, slave_node, 2);
+            // printf("Reading Ultrasonic\n");
+            dis_val1 = get_obstacle_data(src_id,master_node,ULTRASONIC_FRONT);
+            dis_val2 = get_obstacle_data(src_id,slave_node,ULTRASONIC_FRONT);
+            // sleep(2);
+            // printf("Reading RSSI..\n");
+            rssi_val1 = get_RSSI(src_id,master_node);
+            rssi_val2 = get_RSSI(src_id,slave_node);
+            // sleep(2);
+            
+            //output reading to txt file
+            fprintf(fptr, "%ld,%ld,%d,%d\n", rssi_val1, rssi_val2, dis_val1, dis_val2);
+            
+            counter_rssi++;
+            send_toggle_led(src_id, master_node, 2);
+            send_toggle_led(src_id, slave_node, 2);
+            
+            usleep(100000);
+            
+        }
+        
+        counter_rssi = 0;
+        if(counter_fb % 2 != 0) {
+            send_forward_time(src_id, master_node, 1000); //move bot forward 1s
+            send_forward_time(src_id, slave_node, 1000);
+        }
+        else {
+            send_reverse_time(src_id, master_node, 1000); //move bot backward 1s
+            send_reverse_time(src_id, slave_node, 1000);
+        }
+        send_toggle_led(src_id, master_node, 1);
+        send_toggle_led(src_id, slave_node, 1);
+        
+        sleep(1);
+        printf("Iteration: %d\n",counter_d);
+        counter_d++;
+    }
+    counter_d = 0;
+    counter_fb++;
+    }
+    
+    fclose(fptr);
 }
 
 /*! 
