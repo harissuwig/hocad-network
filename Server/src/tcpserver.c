@@ -474,8 +474,26 @@ void bot_follow_bot()
     printf("Select the leader bot: ");
     scanf("%d", &master_node);
     
+    
     printf("Select the slave bot: ");
     scanf("%d", &slave_node);
+
+    //check if input is correct
+    j = 0;
+    int flagm = 0;
+    int flags = 0;
+    while(j < con_count){
+        if(master_node == BOT_ID[j]) flagm = 1;
+        if(slave_node == BOT_ID[j]) flags = 1;
+        j++;
+    }
+    
+    if(flagm != 1 && flags != 1){
+        printf("Wrong bot input\n");
+        return;
+    }
+    flagm = 0;
+    flags = 0;
     printf("\n\n\n");
     
     printf("Select Master Action\n");
