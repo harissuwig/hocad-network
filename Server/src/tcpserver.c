@@ -19,10 +19,11 @@
 #include "AdhocServer.h"
 #include "CommandList.h"
 #include <poll.h>
+#include <sys/time.h>
 
 #define KNNWIND0W 4
 #define DELTA 3 //3 cm error margin
-
+#define READINGF 20 //frequency for rssi measurement
 //#define __DEBUG__ 1
 
 //Applications 
@@ -256,11 +257,19 @@ void test_application()
                 break; */
             case 8:
                 printf("Fetchng front obstacle sensor information \n");
+                struct timeval tv1, tv2;
+                gettimeofday(&tv1, NULL);
                 printf("Front Obtacle sensor reading : %d\n",get_obstacle_data(src_id,dst_id,ULTRASONIC_FRONT));
+                gettimeofday(&tv2, NULL);
+                printf("Total time: %f seconds\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec));
                 break;
             case 9:
                 printf("Fetchng RSSI information \n");
+                struct timeval tv3, tv4;
+                gettimeofday(&tv3, NULL);
                 printf("RSSI reading : %ld\n",get_RSSI(src_id,dst_id));
+                gettimeofday(&tv4, NULL);
+                printf("Total time: %f seconds\n", (double) (tv4.tv_usec - tv3.tv_usec) / 1000000 + (double) (tv4.tv_sec - tv3.tv_sec));
                 break;
             case 10:
                 printf("Fetchng ID\n");
@@ -483,9 +492,9 @@ void bot_follow_bot()
         
             switch(cmd_val)
             {
-                case 1: send_forward_time(src_id, master_node, val);
+                case 1: send_forward_time(src_id, master_node, 0);
                         break;
-                case 2: send_reverse_time(src_id,master_node, val);
+                case 2: send_reverse_time(src_id,master_node, 0);
                         break;
                 default: printf("Exiting App ... \n"); 
                            end_loop = 1;
@@ -515,7 +524,7 @@ void bot_follow_bot()
         }
     } 
     
-    
+    usleep((1/READINGF)*1000000);
 }
 
 void bot_mimick_bot()
@@ -545,7 +554,7 @@ void bot_mimick_bot()
     scanf("%d", &slave_node);
     printf("\n\n\n");
 
-
+    usleep((1/READINGF)*1000000);
 }
 
 
