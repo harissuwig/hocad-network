@@ -54,22 +54,21 @@ def getAccuracy(testSet, predictions):
 			correct += 1
 	return (correct/float(len(testSet))) * 100.0
 	
-def main(file_name, input_data):
+def main(file_name, k, input_data):
 	# prepare data
 	trainingSet=[]
 	loadDataset(file_name, trainingSet)
-	k = 3
 	neighbors = getNeighbors(trainingSet, input_data, k)
 	result = getResponse(neighbors)
-	print 'received rssi: ' + str(input_data)
-	print 'predicted distance: ' + str(result)
+	print int(result)
 	
 if __name__ == "__main__":
-    if len(sys.argv) > 2:
+    if len(sys.argv) > 3:
         try:
             file_name = str(sys.argv[1])
-            input_data = float(sys.argv[2])
-            main(file_name, input_data)
+            k = int(sys.argv[2])
+            input_data = float(sys.argv[3])
+            main(file_name, k, input_data)
         except IOError as e:
             print("File not found.")
 	
