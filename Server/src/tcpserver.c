@@ -21,17 +21,27 @@
 #include <poll.h>
 #include <sys/time.h>
 
-#define KNNWIND0W 4
+#define KNNWINDOW 4
 #define DELTA 3 //3 cm error margin
 #define READINGF 20 //frequency for rssi measurement
+#define BOTLENGTH 20 //length of the bot
 //#define __DEBUG__ 1
+const int  K = 10; //K of the KNN
+const int MaxRange = 300; //maximum reading of the ultrasonic reader is 254
+
 
 //Applications 
 void test_application();
 void bot_follow_bot();
 void bot_mimick_bot();
 void calibrate_mode(int ind);
-double slaveDistanceGapKNN(long * leaderRSSI, long * slaveRSSI, unsigned int requiredGap);
+int slaveDistanceGapKNN(long * leaderRSSI, long * slaveRSSI, int mode); //for slaveDistanceGapKNN
+void sort (long * v, int n); //for bubble sorting
+
+
+//bot_follow_bot and bot_mimic_bot application variables
+int timeScaleToDistanceLeader = 5; // scale converstion from time(sec) movement to distance for bot 6
+int timeScaleToDistanceSlave = 5; // scale converstion from time(sec) movement to distance for bot 17
 
 unsigned int con_count = 0;
 int master_node = 0;
@@ -348,18 +358,32 @@ void test_application()
     system("clear");
 
 }
-
+/*!
+ * \breif Measure RSSI and corsponding distance and store it as .csv
+ * 
+ * \param ind is the experiment number 
+ *            1 - bot follow bot 
+ *            2 - bot mimick bot
+ */
 void calibrate_mode(int ind){
     char ans;
     printf("Ready to calibrate ? (y/n): ");
     scanf(" %c", &ans);
     if(ans == 'N' || ans == 'n') return;
 
-    FILE *fptr;
-    char filename[30];
-    sprintf(filename, "calibration_%d.csv", ind);
-    fptr = fopen(filename,"a");
+    FILE *fptr, *fptr2;
+    char filename1[30];
+    char filename2[30];
+    sprintf(filename1, "calibration_master_%d.csv", ind);
+    sprintf(filename2, "calibration_slave_%d.csv", ind);
+    fptr = fopen(filename1,"a");
     if(fptr == NULL){
+        printf("ERROR!");
+        exit(1);
+    }
+
+    fptr2 = fopen(filename2,"a");
+    if(fptr2 == NULL){
         printf("ERROR!");
         exit(1);
     }
@@ -378,10 +402,10 @@ void calibrate_mode(int ind){
     
     printf("Getting initial distance and RSSI data...\n");
     //Do measurement on 8 different distance
-    fprintf(fptr, "rssi_%d,rssi_%d,dis_%d,dis_%d\n", master_node, slave_node, master_node, slave_node);
+    // fprintf(fptr, "rssi_%d,rssi_%d,dis_%d,dis_%d\n", master_node, slave_node, master_node, slave_node);
     unsigned int counter_fb = 0;
     while(counter_fb < 1){
-    while(counter_d < 15){
+    while(counter_d < 70){
         //Do RSSI readings 20x
         send_toggle_led(src_id, master_node, 1);
         send_toggle_led(src_id, slave_node, 1);
@@ -402,7 +426,8 @@ void calibrate_mode(int ind){
             // sleep(2);
             
             //output reading to txt file
-            fprintf(fptr, "%ld,%ld,%d,%d\n", rssi_val1, rssi_val2, dis_val1, dis_val2);
+            fprintf(fptr, "%ld,%d\n", rssi_val1, dis_val1);
+            fprintf(fptr2, "%ld,%d\n", rssi_val2, dis_val2);
             
             counter_rssi++;
             // send_toggle_led(src_id, master_node, 2);
@@ -418,7 +443,7 @@ void calibrate_mode(int ind){
             send_forward_time(src_id, slave_node, fwdis);
         }
         else {
-            send_reverse_time(src_id, master_node, bwdis); //move bot backward 1s
+            send_reverse_time(src_id, master_node, bwdis-20); //move bot backward 1s
             send_reverse_time(src_id, slave_node, bwdis);
         }
         // send_toggle_led(src_id, master_node, 1);
@@ -434,22 +459,33 @@ void calibrate_mode(int ind){
     }
     
     fclose(fptr);
+    fclose(fptr2);
 }
 
 /*! 
- * \Brief test basic functionalities of both Bots and connection between them 
+ * \Brief Slave Bot follows the Leader Bot while both of them are on the same side 
+ *        The Slave is placed behind the Leader
  * 
  */
 void bot_follow_bot()
 {
-    int val = 1000; // 1000 millisecond, for forward and reverse movement
+    FILE *fp;
+    char filename[40];
+    sprintf(filename, "perf1.csv");
+    fp = fopen(filename,"a");
+    if(fp == NULL){
+        printf("ERROR!");
+        exit(1);
+    }
+
+
+    int val = 500; // 500 millisecond, for forward and reverse movement
     char end_loop = 0; 
     int cmd_val = 0;
-    long leaderRSSI[KNNWIND0W] = { 0 };
-    long slaveRSSI[KNNWIND0W] = { 0 };
-    double distanceFromLeader;
-    double DistanceToTimeScale = 1; // scale converstion from distance to time of movement scale 
-    unsigned int requiredGap = 100; // current gap to maintain between the leader and the maste
+    long leaderRSSI[KNNWINDOW] = { 0 };
+    long slaveRSSI[KNNWINDOW] = { 0 };
+    int distanceFromLeader;
+    unsigned int requiredGap = 20; // current gap to maintain between the leader and the master
     
     //variables for timed input
     struct pollfd mypoll = { STDIN_FILENO, POLLIN|POLLPRI };
@@ -478,6 +514,12 @@ void bot_follow_bot()
     printf("Select the slave bot: ");
     scanf("%d", &slave_node);
 
+    printf("Input required gap (cm): ");
+    scanf("%d", &requiredGap);
+    int logging = 0;
+    printf("Log data? (1/0)\n");
+    scanf("%d", &logging);
+
     //check if input is correct
     j = 0;
     int flagm = 0;
@@ -500,6 +542,12 @@ void bot_follow_bot()
     printf("====================\n");
     printf("1. Move Forward\n");
     printf("2. Move Reverse\n");
+    printf("3. Increase reverse multiplier\n");
+    printf("4. Decrease reverse multiplier\n");
+    printf("5. Increase forward multiplier\n");
+    printf("6. Decrease forward multiplier\n");
+    
+    printf("0. Exit\n");
     
     //timed input
     while(!end_loop)
@@ -507,46 +555,102 @@ void bot_follow_bot()
         if( poll(&mypoll, 1, 1000) )
         {
             scanf("%d", &cmd_val);
+            // printf("Insert duration:");
+            //scanf("%d",&val);
         
             switch(cmd_val)
             {
-                case 1: send_forward_time(src_id, master_node, 0);
+                case 1: send_forward_time(src_id, master_node, val);
                         break;
-                case 2: send_reverse_time(src_id,master_node, 0);
+                case 2: send_reverse_time(src_id, master_node, val);
                         break;
-                default: printf("Exiting App ... \n"); 
+                case 3: timeScaleToDistanceSlave+=1;
+                        printf("rv multiplier: %d\n",timeScaleToDistanceSlave);
+                        break;
+                case 4: timeScaleToDistanceSlave-=1;
+                        printf("rv multiplier: %d\n",timeScaleToDistanceSlave);
+                        break;
+                case 5: timeScaleToDistanceLeader+=1;
+                        printf("fw divisor: %d\n",timeScaleToDistanceLeader);
+                        break;
+                case 6: timeScaleToDistanceLeader-=1;
+                        printf("fw divisor: %d\n",timeScaleToDistanceLeader);
+                        break;
+                case 0: printf("Exiting App ... \n"); 
+                        stop_bot(src_id,slave_node); 
                            end_loop = 1;
                            break; 
             }
        
         }
-        
+        printf("reading\n");
         //measure RSSI of leader and servant
-        for(int i = 0; i < KNNWIND0W; i++)
+        for(int i = 0; i < KNNWINDOW; i++)
         {
             leaderRSSI[i] = get_RSSI(src_id,master_node);
             slaveRSSI[i] = get_RSSI(src_id,slave_node);
         }
-        
+        printf("sending\n");
         //if difference gives positive, we move forward; if difference give negative, we move backward
-        distanceFromLeader = slaveDistanceGapKNN(leaderRSSI, slaveRSSI, requiredGap);
-        
-        
-        if(distanceFromLeader > DELTA)
+        distanceFromLeader = slaveDistanceGapKNN(leaderRSSI, slaveRSSI, 1);
+        int us_reading1 = get_obstacle_data(src_id,slave_node,ULTRASONIC_FRONT);
+        int us_reading2 = get_obstacle_data(src_id,master_node,ULTRASONIC_FRONT);
+        printf("d_rssi: %d, d_us1: %d, d_us2: %d\n", distanceFromLeader,us_reading1, us_reading2);
+        if(logging == 1) fprintf(fp, "%d,%d,%d,%d\n",distanceFromLeader, us_reading1, us_reading2, requiredGap);
+        //only process if valid distance has been computed both for the leader and the slave
+        if (distanceFromLeader < MaxRange)
         {
-            send_forward_time(src_id,slave_node,distanceFromLeader*DistanceToTimeScale);
+            distanceFromLeader = requiredGap - distanceFromLeader;  //(assuming the forward direction is towards AP)
+        
+            //if the Gap is too huge we need to move closer to the leader ... else the Gap is too small so we need to retreat back
+            if(distanceFromLeader > DELTA)
+            {
+                
+                send_reverse_time(src_id,slave_node,(int)((distanceFromLeader-DELTA)*timeScaleToDistanceSlave));
+                // send_reverse_time(src_id,slave_node,0);
+                
+            }
+            else if ((-1*distanceFromLeader) > DELTA)
+            {
+                send_forward_time(src_id,slave_node,(int)((-distanceFromLeader-DELTA)*timeScaleToDistanceLeader));
+                // send_forward_time(src_id,slave_node,0);
+            }     
         }
-        else if ((-1*distanceFromLeader) > DELTA)
-        {
-            send_reverse_time(src_id,slave_node,distanceFromLeader*DistanceToTimeScale);
-        }
+        
     } 
     
-    usleep((1/READINGF)*1000000);
+    // usleep((1/READINGF)*1000000);
+    fclose(fp);
 }
 
+
+/*! 
+ * \Brief Slave Bot mimicks the Leader Bot from an opposit side of the AP
+ * 
+ */
 void bot_mimick_bot()
 {
+    FILE *fp;
+    char filename[40];
+    sprintf(filename, "perf2.csv");
+    fp = fopen(filename,"a");
+    if(fp == NULL){
+        printf("ERROR!");
+        exit(1);
+    }
+
+
+    int val = 500; // 500 millisecond, for forward and reverse movement
+    char end_loop = 0; 
+    int cmd_val = 0;
+    long leaderRSSI[KNNWINDOW] = { 0 };
+    long slaveRSSI[KNNWINDOW] = { 0 };
+    int distanceFromLeader;
+    unsigned int requiredGap = 0; // current gap to maintain between the leader and the master
+    
+    //variables for timed input
+    struct pollfd mypoll = { STDIN_FILENO, POLLIN|POLLPRI };
+    
     printf("\n\n\n");
     if(con_count != 2)
     {
@@ -558,30 +662,256 @@ void bot_mimick_bot()
     int new_master;
     while(j < con_count) {
         printf("%d", BOT_ID[j]);
-        if(BOT_ID[j] == master_node) printf(" (leader)");
-        
+        if(BOT_ID[j] == master_node) printf(" (leader)");        
         j++;
         if(j != con_count) printf(", ");
         else printf("\n");
     }
 
     printf("Select the leader bot: ");
-    scanf("%d",&master_node);
+    scanf("%d", &master_node);
+    
     
     printf("Select the slave bot: ");
     scanf("%d", &slave_node);
-    printf("\n\n\n");
+    int logging = 0;
+    printf("Log data? (1/0)\n");
+    scanf("%d", &logging);
 
-    usleep((1/READINGF)*1000000);
+    //check if input is correct
+    j = 0;
+    int flagm = 0;
+    int flags = 0;
+    while(j < con_count){
+        if(master_node == BOT_ID[j]) flagm = 1;
+        if(slave_node == BOT_ID[j]) flags = 1;
+        j++;
+    }
+    
+    if(flagm != 1 && flags != 1){
+        printf("Wrong bot input\n");
+        return;
+    }
+    flagm = 0;
+    flags = 0;
+    printf("\n\n\n");
+    
+    printf("Select Master Action\n");
+    printf("====================\n");
+    printf("1. Move Forward\n");
+    printf("2. Move Reverse\n");
+    printf("3. Increase reverse multiplier\n");
+    printf("4. Decrease reverse multiplier\n");
+    printf("5. Increase forward multiplier\n");
+    printf("6. Decrease forward multiplier\n");
+    
+    printf("0. Exit\n");
+    
+    //timed input
+    while(!end_loop)
+    {
+        if( poll(&mypoll, 1, 1000) )
+        {
+            scanf("%d", &cmd_val);
+            // printf("Insert duration:");
+            //scanf("%d",&val);
+        
+            switch(cmd_val)
+            {
+                case 1: send_forward_time(src_id, master_node, val);
+                        break;
+                case 2: send_reverse_time(src_id, master_node, val);
+                        break;
+                case 3: timeScaleToDistanceSlave+=1;
+                        printf("rv multiplier: %d\n",timeScaleToDistanceSlave);
+                        break;
+                case 4: timeScaleToDistanceSlave-=1;
+                        printf("rv multiplier: %d\n",timeScaleToDistanceSlave);
+                        break;
+                case 5: timeScaleToDistanceLeader+=1;
+                        printf("fw divisor: %d\n",timeScaleToDistanceLeader);
+                        break;
+                case 6: timeScaleToDistanceLeader-=1;
+                        printf("fw divisor: %d\n",timeScaleToDistanceLeader);
+                        break;
+                case 0: printf("Exiting App ... \n"); 
+                        stop_bot(src_id,slave_node); 
+                           end_loop = 1;
+                           break; 
+            }
+       
+        }
+        printf("reading\n");
+        //measure RSSI of leader and servant
+        for(int i = 0; i < KNNWINDOW; i++)
+        {
+            leaderRSSI[i] = get_RSSI(src_id,master_node);
+            slaveRSSI[i] = get_RSSI(src_id,slave_node);
+        }
+        printf("sending\n");
+        //if difference gives positive, we move forward; if difference give negative, we move backward
+        distanceFromLeader = slaveDistanceGapKNN(leaderRSSI, slaveRSSI, 1);
+        int us_reading1 = get_obstacle_data(src_id,slave_node,ULTRASONIC_FRONT);
+        int us_reading2 = get_obstacle_data(src_id,master_node,ULTRASONIC_FRONT);
+        printf("d_rssi: %d, d_us1: %d, d_us2: %d\n", distanceFromLeader,us_reading1, us_reading2);
+        if(logging == 1) fprintf(fp, "%d,%d,%d,%d\n",distanceFromLeader, us_reading1, us_reading2, requiredGap);
+        //only process if valid distance has been computed both for the leader and the slave
+        if (distanceFromLeader < MaxRange)
+        {
+            distanceFromLeader = requiredGap - distanceFromLeader;  //(assuming the forward direction is towards AP)
+        
+            //if the Gap is too huge we need to move closer to the leader ... else the Gap is too small so we need to retreat back
+            if(distanceFromLeader > DELTA)
+            {
+                
+                send_reverse_time(src_id,slave_node,(int)((distanceFromLeader-DELTA)*timeScaleToDistanceSlave));
+                // send_reverse_time(src_id,slave_node,0);
+                
+            }
+            else if ((-1*distanceFromLeader) > DELTA)
+            {
+                send_forward_time(src_id,slave_node,(int)((-distanceFromLeader-DELTA)*timeScaleToDistanceLeader));
+                // send_forward_time(src_id,slave_node,0);
+            }     
+        }
+        
+    } 
+    
+    // usleep((1/READINGF)*1000000);
+    fclose(fp);
 }
 
 
-double slaveDistanceGapKNN(long * leaderRSSI, long * slaveRSSI, unsigned int requiredGap) //leaderRSSI and slaveRSSI array of size KNNWINDOW
+/*!
+ * \breif computes the distance of a slave from the AP compared to the master
+ *
+ * \param leaderRSSI an array of RSSI readings for the leader as defined by the KNNWINDOW
+ * \param slaveRSSI an array of RSSI readings for the salve as defined by the KNNWINDOW
+ *
+ * \return 300 if the readings are too noisy and the distance fo the slave from the AP compared to the maaster if not
+ *
+ * \todo We need to add one more argument to indicate the application invoking this, so that we can use appropriet file for the slave depending on wheather it is mimick or follow
+ */  
+int slaveDistanceGapKNN(long * leaderRSSI, long * slaveRSSI, int mode) //leaderRSSI and slaveRSSI array of size KNNWINDOW
 {
-//KNNWIND0W 
+
+//For envoking python command
+    FILE *fp;
+    char path[1024];
+    char command[100];
+//KNNWINDOW 
 // both from leaderRSSI and slaveRSSI, remove extreme value
-// for both the leader and slave calculate distance from the KNN table for each member
-// again remove the estreme and calculate the average of the results bot for leader and slave
-// Return requiredGap - (slave - distance)  (assuming the forward direction is towards AP)
-return 0.0;
+    long removalThreshold = 8;
+    int countValidLeader= (int)(KNNWINDOW);
+    int countValidSlave = (int)(KNNWINDOW);
+    sort(leaderRSSI, countValidLeader);
+    sort(slaveRSSI, countValidSlave);
+    if(KNNWINDOW > 1){
+    //max outlier
+    if( (leaderRSSI[0] - leaderRSSI[1]) < -removalThreshold )
+    {
+        memmove(&leaderRSSI[0], &leaderRSSI[1], (countValidLeader-1)*sizeof(*leaderRSSI));
+        countValidLeader--;
+    }
+    
+    if( (slaveRSSI[0] - slaveRSSI[1]) < -removalThreshold )
+    {
+        memmove(&slaveRSSI[0], &slaveRSSI[1], (countValidSlave-1)*sizeof(*slaveRSSI));
+        countValidSlave--;
+    }
+    
+    //least outlier
+    if( (leaderRSSI[countValidLeader-2] - leaderRSSI[countValidLeader-1]) < -removalThreshold )
+    {
+        leaderRSSI[countValidLeader-1] = leaderRSSI[countValidLeader-2];
+        countValidLeader--;
+    }
+        
+    if( (slaveRSSI[countValidSlave-2] - slaveRSSI[countValidSlave-1]) < -removalThreshold )
+    {
+        slaveRSSI[countValidSlave-1] = slaveRSSI[countValidSlave-2];
+        countValidSlave--;
+    }
+    }
+    // for(int i = 0; i < countValidLeader; i++){
+    //     printf("%ld ", leaderRSSI[i]);
+    // }
+    // printf("\n");
+    // for(int i = 0; i < countValidSlave; i++){
+    //     printf("%ld ", slaveRSSI[i]);
+    // }
+    // printf("\n");
+    
+    //abort if the reading is unstable
+    if(countValidSlave < 1 || countValidLeader < 1)
+    {
+        return MaxRange; //the maximum value the ultrasonic reader will give is 254
+    }
+    
+    //Finding the distance for the remaining RSSI
+    int slaveDistance = 0; 
+    int leaderDistance = 0;
+    
+    // for both the leader and slave calculate distance from the KNN table for each member
+    //for leader
+    for(int i = 0; i < countValidLeader; i++)
+    {
+        sprintf(command, "python knn.py calibration_master_%d.csv %d %d", mode, K, (int)leaderRSSI[i]);
+        fp = popen(command, "r");
+        if (fp ==NULL){
+            printf("Failed\n");
+            exit(1);
+        }
+        while(fgets(path, sizeof(path), fp) != NULL)
+            leaderDistance += atoi(path);    
+        pclose(fp);
+    }
+
+    leaderDistance /= countValidLeader;
+    printf("leaderDistance: %d\n",leaderDistance);
+    
+    //for slave
+    for(int i = 0; i < countValidSlave; i++)
+    {
+        sprintf(command, "python knn.py calibration_slave_%d.csv %d %d", mode, K, (int)slaveRSSI[i]);
+        fp = popen(command, "r");
+        if (fp ==NULL){
+            printf("Failed\n");
+            exit(1);
+        }
+        while(fgets(path, sizeof(path), fp) != NULL)
+            slaveDistance += atoi(path);    
+        pclose(fp);
+    }
+    slaveDistance /= countValidSlave;
+    printf("slaveDistance: %d\n",slaveDistance);
+    // again remove the estreme and calculate the average of the results bot for leader and slave
+    // .. we will use this step if necessary]
+        
+    return (int)(slaveDistance - leaderDistance);
+}
+
+/*!
+ * \breif bubble sort from stackoverflow
+ *        arrangs in decending order
+ *
+ * \param v pointer to the array to be sorted
+ *
+ * \param n the size of the array
+ */
+
+void sort (long * v, int n)
+{
+    int i,k;
+    int temp;
+
+    for(i = 0; i<n-1; i++) {
+        for(k = 0; k<n-1-i; k++) {
+            if(v[k] > v[k+1]) {
+                temp = v[k];
+                v[k] = v[k+1];
+                v[k+1] = temp;
+            }
+        }
+    }
 }
