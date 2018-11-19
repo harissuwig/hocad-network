@@ -40,6 +40,7 @@
 #define DISTANCEFRONT 0x0A
 #define GETHEADING 0x0D 
 #define GETID 0x0F
+#define TOGGLELED 0x11
 
 //Internal commands, communicated with ESP32
 #define INT_ID 0x01
@@ -69,15 +70,17 @@ uint8_t matrix[NODECOUNT][NODECOUNT]={{0,1,0,1,1,1,0,1,0,0,0,0,0,1,0,1},
                                       {0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,1},
                                       {0,0,1,0,0,0,1,0,0,0,0,0,0,1,1,0}};
 char ssid[] = "internet";
-char password[] = "connectplease";
-char ip[] = {192,168,43,49};
+char password[] = "12348765";
+char ip[] = {192,168,0,132};
+
+#define BOTID 17
 
 uint8_t Command = 0;
 long Rssi = 0;
 unsigned long distance = 0;
 
 uint8_t nodeID = 0;
-uint8_t movementTime = 0;
+unsigned long movementTime = 0;
 uint16_t tempMovementTime = 0;
 
 uint16_t PacketCounter = 0;
@@ -86,6 +89,11 @@ long RSSI_Value = 0;
 PacketSerial packetSerial;
 
 uint8_t dat[2];
+
+bool state_led1 = false;
+bool state_led2 = false;
+bool state_led3 = false;
+bool state_led4 = false;
 
 //Handle commands. USER CAN ADD MODE COMMANDS IF NECESSARY
 void handleCommands(uint8_t src, uint8_t dst, uint8_t internal, uint8_t tcp, uint8_t fwd, uint8_t counterH, uint8_t counterL, uint8_t datalen, uint8_t command, uint8_t *data)
@@ -99,14 +107,14 @@ void handleCommands(uint8_t src, uint8_t dst, uint8_t internal, uint8_t tcp, uin
                          moveForward();
                          break;
 
-      case MOVEFORWARDTIME: moveForwardForTime(*data);
+      case MOVEFORWARDTIME: moveForwardForTime(data);
                             break;
 
       case MOVEBACK: Command = MOVEBACK; 
                      moveBack();
                      break;
                      
-      case MOVEBACKTIME: moveBackForTime(*data);
+      case MOVEBACKTIME: moveBackForTime(data);
                          break;
                          
       case STOP: Command = STOP; 
@@ -137,6 +145,12 @@ void handleCommands(uint8_t src, uint8_t dst, uint8_t internal, uint8_t tcp, uin
                   tempData[1] = nodeID;
                   sendPacket(dst, src, internal, tcp, ACK, counterH, counterL, 2, tempData);
                   break; 
+      
+      case TOGGLELED: if(data[0] == 1) {state_led1 = !state_led1; setLED(REDLED, state_led1);}
+                      else if(data[0] == 3) {state_led2 = !state_led2;setLED(WHITELED, state_led2);}
+                      else if(data[0] == 2) {state_led3 = !state_led3;setLED(YELLOWLED, state_led3);}
+                      else if(data[0] == 4) {state_led4 = !state_led4;setLED(ORANGELED, state_led4);}
+                      break;
     }
   }
 
@@ -153,7 +167,7 @@ ISR(TIMER1_OVF_vect)
   case TURNLEFT:
   case TURNRIGHT:
   case MOVEBACKTIME:
-  if(((uint16_t)(millis()/1000) - tempMovementTime) >= movementTime)
+  if(((uint16_t)(millis()) - tempMovementTime) >= movementTime)
                       {
                         stopMotors();  
                         Command = NOCOMMAND; 
@@ -266,21 +280,31 @@ void stopMotors()
   delay(200);  
 }
 
+#define lowByte(MSG)    ((uint8_t)((MSG) & 0xFF))
+#define highByte(MSG)   ((uint8_t)((MSG) >> 8))
+#define secondByte(MSG)  ((uint8_t)(((MSG) >> 8) & 0xFF))
+#define thirdByte(MSG)  ((uint8_t)(((MSG) >> 16) & 0xFF))
+#define fourthByte(MSG)  ((uint8_t)(((MSG) >> 24) & 0xFF))
+#define combineByte(MSB,LSB) ((uint16_t) (((MSB) << 8) | (LSB)))
+#define combine32Byte(MSB1, MSB2, MSB3, LSB) ((uint32_t) ((MSB1 << 24) | (MSB2 << 16) | (MSB3 << 8) | LSB))
+
 //Move forward for specific time (in seconds)
-void moveForwardForTime(uint8_t data)
+void moveForwardForTime(uint8_t *data)
 {
   moveForward();
-  movementTime = data;
-  tempMovementTime = (uint16_t)(millis()/1000);
+  uint32_t duration = combine32Byte(data[3], data[2], data[1], data[0]);
+  movementTime = duration;
+  tempMovementTime = (uint16_t)(millis());
   Command = MOVEFORWARDTIME;
 }
 
 //Move back for specific time (in seconds)
-void moveBackForTime(uint8_t data)
+void moveBackForTime(uint8_t *data)
 {
   moveBack();
-  movementTime = data;
-  tempMovementTime = (uint16_t)(millis()/1000);
+  uint32_t duration = combine32Byte(data[3], data[2], data[1], data[0]);
+  movementTime = duration;
+  tempMovementTime = (uint16_t)(millis());
   Command = MOVEBACKTIME;
 }
 
@@ -318,7 +342,7 @@ void turnLeft(uint8_t data)
   digitalWrite(MOTOR_BACK_RIGHT_P,HIGH);
   digitalWrite(MOTOR_BACK_RIGHT_N,LOW);  
   movementTime = data;
-  tempMovementTime = (uint16_t)(millis()/1000);
+  tempMovementTime = (uint16_t)(millis());
   Command = TURNLEFT;
 }
 
@@ -338,7 +362,7 @@ void turnRight(uint8_t data)
   digitalWrite(MOTOR_BACK_RIGHT_P,LOW);
   digitalWrite(MOTOR_BACK_RIGHT_N,HIGH); 
   movementTime = data;
-  tempMovementTime = (uint16_t)(millis()/1000);
+  tempMovementTime = (uint16_t)(millis());
   Command = TURNRIGHT;
 }
 
@@ -495,7 +519,7 @@ void sendPacket(uint8_t src, uint8_t dst, uint8_t internal, uint8_t isTCP, uint8
 void setup() 
 {
 Serial.begin(115200);
-setID(15);
+//setID(BOTID);
 nodeID = getID();
 packetSerial.setPacketHandler(&onPacket);
 packetSerial.begin(115200);
@@ -552,4 +576,3 @@ void OnReceive(uint8_t src, uint8_t dst, uint8_t internal, uint8_t tcp, uint8_t 
       handleCommands(src, dst, internal, tcp, fwd, counterH, counterL, datalen, command, data);
   }
 }
-

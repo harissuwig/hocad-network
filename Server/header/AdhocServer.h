@@ -38,9 +38,9 @@ int get_obstacle_data(int src,int dst,int sensor_num);
 void stop_bot(int src,int dst);
 void send_rotate_left(int src,int dst,int time);
 void send_rotate_right(int src,int dst,int time);
-void send_forward_time(int src,int dst,int time);
+void send_forward_time(int src,int dst,unsigned long time);
 void send_forward_dist(int src,int dst,char dist);
-void send_reverse_time(int src,int dst,char time);
+void send_reverse_time(int src,int dst,unsigned long time);
 void send_reverse_dist(int src,int dst,char dist);
 int get_index(int val);
 void create_packet(int src,int dst, char length,char *data);
@@ -48,4 +48,5 @@ void create_packet_ID(char length,char *data,int client_index);
 int send_cmd(int client_sock, char *buf,int size);
 void print_packet(char *buf,int size);
 void read_file();
+void send_toggle_led(int src,int dst,char ledno);
 #endif

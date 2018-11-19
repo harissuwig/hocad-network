@@ -198,7 +198,7 @@ long get_RSSI(int src,int dst) {
     int ret = 0;
     char *value = NULL;
     char data;
-    int client_index = get_index(dst_id);
+    int client_index = get_index(dst);
     
     data = GET_RSSI;
     create_packet(src,dst,sizeof(data),&data);
@@ -304,7 +304,7 @@ int get_obstacle_data(int src,int dst,int sensor_num) {
 
     }
     memset(client_message,'\0',1024);
-    int client_index = get_index(dst_id);
+    int client_index = get_index(dst);
     ret = recv(client_sock[client_index] , client_message ,1024, 0);
    
     value = get_data(client_message);
@@ -345,16 +345,25 @@ void send_rotate_right(int src,int dst,int time) {
 
 /* Function to send forward command to the bot */
 
-void send_forward_time(int src,int dst,int time) {
+#define lowByte(MSG)    ((uint8_t)((MSG) & 0xFF))
+#define highByte(MSG)   ((uint8_t)((MSG) >> 8))
+#define secondByte(MSG)  ((uint8_t)(((MSG) >> 8) & 0xFF))
+#define thirdByte(MSG)  ((uint8_t)(((MSG) >> 16) & 0xFF))
+#define fourthByte(MSG)  ((uint8_t)(((MSG) >> 24) & 0xFF))
+
+void send_forward_time(int src,int dst,unsigned long time) {
 
     if(time == 0) {
         char data = MOVEFORWARD;
         create_packet(src,dst,sizeof(data),&data);
     }
     else {
-        char data[2];
+        char data[5];
         data[0] = MOVEFORWARD_TIME;
-        data[1] = time;
+        data[1] = lowByte(time);
+        data[2] = secondByte(time);
+        data[3] = thirdByte(time);
+        data[4] = fourthByte(time);
         create_packet(src,dst,sizeof(data),data);
     }
 
@@ -388,16 +397,19 @@ void send_forward_dist(int src,int dst,char dist) {
  * Can be useful in future when Hall effect sensor
  * is available on the bot
  */
-void send_reverse_time(int src,int dst,char time) {
+void send_reverse_time(int src,int dst,unsigned long time) {
 
     if(time == 0) {
         char data = MOVE_REVERSE;
         create_packet(src,dst,sizeof(data),&data);
     }
     else {
-        char data[2];
+        char data[5];
         data[0] = MOVE_REVERSE_TIME;
-        data[1] = time;
+        data[1] = lowByte(time);
+        data[2] = secondByte(time);
+        data[3] = thirdByte(time);
+        data[4] = fourthByte(time);
         create_packet(src,dst,sizeof(data),data);
     }
 
@@ -415,6 +427,13 @@ void send_reverse_dist(int src,int dst,char dist) {
         create_packet(src,dst,sizeof(data),data);
     }
 
+}
+
+void send_toggle_led(int src,int dst,char ledno){
+    char data[2];
+    data[0] = TOGGLE_LED;
+    data[1] = ledno;
+    create_packet(src,dst,sizeof(data),data);
 }
 
 /*
@@ -456,7 +475,7 @@ void create_packet(int src,int dst, char length,char *data)
     }
     
     packet=(char*)calloc(11 +length,sizeof(char));
-
+    if(counter == 0x79) counter = 0;
     packet[0]= START_MARKER;
     packet[PACKET_START_BYTE_LOC + 1] = 0xFF;
     packet[PACKET_SRC_LOC + 1] = src;
@@ -500,7 +519,7 @@ void create_packet_ID(char length,char *data,int client_index)
     char *packet;
 
     packet=(char*)calloc(11 +length,sizeof(char));
-
+    if(counter == 0x79) counter = 0;
 
     packet[0]= START_MARKER;
     packet[PACKET_START_BYTE_LOC + 1] = 0xFF;
